@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login – EduQuest</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .login-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { background: var(--bg-primary); border-radius: 20px; width: 100%; max-width: 520px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); overflow: hidden; }
+        .login-header { background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: #fff; padding: 24px; text-align: center; }
+        .login-header h1 { font-weight: 800; }
+        .login-body { padding: 24px; }
+        .role-select { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .role-btn { border: 1px solid var(--border); background: var(--bg-secondary); padding: 12px; border-radius: 12px; cursor: pointer; font-weight: 700; }
+        .role-btn.active { outline: 3px solid var(--primary); background: #eef2ff; }
+        .form { display: none; }
+        .form.active { display: block; }
+        .form h3 { margin-bottom: 10px; color: var(--text-primary); }
+        .form .field { margin-bottom: 12px; text-align: left; }
+        .form label { display: block; margin-bottom: 6px; color: var(--text-secondary); }
+        .form input, .form select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; }
+        .form .actions { margin-top: 8px; display: flex; gap: 10px; }
+        .muted { color: var(--text-secondary); font-size: 0.9rem; }
+        .center { text-align: center; }
+        .back-link { display: inline-block; margin-top: 10px; color: var(--primary); text-decoration: none; font-weight: 700; }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const roleButtons = document.querySelectorAll('.role-btn');
+            const studentForm = document.getElementById('student-form');
+            const facultyForm = document.getElementById('faculty-form');
+            let studentMode = 'login'; // 'login' | 'signup'
+            let facultyMode = 'login';
+
+            function setRole(role) {
+                roleButtons.forEach(b => b.classList.toggle('active', b.dataset.role === role));
+                if (role === 'student') {
+                    studentForm.classList.add('active');
+                    facultyForm.classList.remove('active');
+                } else {
+                    facultyForm.classList.add('active');
+                    studentForm.classList.remove('active');
+                }
+            }
+
+            roleButtons.forEach(btn => btn.addEventListener('click', () => setRole(btn.dataset.role)));
+            // default
+            setRole('student');
+
+            // Simple validators
+            function isValidPhone(phone) {
+                return /^\d{10}$/.test(phone);
+            }
+            function isValidEmail(email) {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            }
+
+            // Simple user store (placeholder for backend)
+            function getUsers() {
+                try { return JSON.parse(localStorage.getItem('eduquest_users')) || []; } catch { return []; }
+            }
+            function saveUsers(users) {
+                localStorage.setItem('eduquest_users', JSON.stringify(users));
+            }
+            function findUser(role, identifier, password) {
+                const users = getUsers();
+                return users.find(u => u.role === role && (u.phone === identifier || u.email === identifier) && u.password === password);
+            }
+            function userExists(role, phone, email) {
+                const users = getUsers();
+                return users.some(u => u.role === role && (u.phone === phone || (!!email && u.email === email)));
+            }
+
+            function renderStudentMode() {
+                const title = studentForm.querySelector('h3');
+                const nameField = document.getElementById('student-name').closest('.field');
+                const gradeField = document.getElementById('student-grade').closest('.field');
+                const toggleLink = document.getElementById('student-toggle-mode');
+                if (studentMode === 'signup') {
+                    title.textContent = 'Create Student Account';
+                    nameField.style.display = '';
+                    gradeField.style.display = '';
+                    if (toggleLink) toggleLink.textContent = 'Already have an account? Log in';
+                } else {
+                    title.textContent = 'Student Login';
+                    nameField.style.display = 'none';
+                    gradeField.style.display = 'none';
+                    if (toggleLink) toggleLink.textContent = 'New here? Create account';
+                }
+            }
+
+            function renderFacultyMode() {
+                const title = facultyForm.querySelector('h3');
+                const nameField = document.getElementById('faculty-name').closest('.field');
+                const emailField = document.getElementById('faculty-email').closest('.field');
+                const toggleLink = document.getElementById('faculty-toggle-mode');
+                if (facultyMode === 'signup') {
+                    title.textContent = 'Create Faculty Account';
+                    nameField.style.display = '';
+                    emailField.style.display = '';
+                    if (toggleLink) toggleLink.textContent = 'Already have an account? Log in';
+                } else {
+                    title.textContent = 'Faculty Login';
+                    nameField.style.display = 'none';
+                    emailField.style.display = '';
+                    if (toggleLink) toggleLink.textContent = 'New here? Create account';
+                }
+            }
+
+            // Handle student login
+            document.getElementById('student-login-btn').addEventListener('click', function(e) {
+                e.preventDefault();
+                const name = document.getElementById('student-name').value.trim() || 'Student';
+                const grade = document.getElementById('student-grade').value;
+                const phone = document.getElementById('student-phone').value.trim();
+                const password = document.getElementById('student-password').value;
+                const errorEl = document.getElementById('student-error');
+                if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+
+                if (!isValidPhone(phone)) {
+                    if (errorEl) { errorEl.textContent = 'Please enter a valid 10-digit phone number.'; errorEl.style.display = 'block'; }
+                    return;
+                }
+                if (!password) {
+                    if (errorEl) { errorEl.textContent = 'Password cannot be empty.'; errorEl.style.display = 'block'; }
+                    return;
+                }
+                if (studentMode === 'login') {
+                    const user = findUser('student', phone, password);
+                    if (!user) {
+                        if (errorEl) { errorEl.textContent = 'Invalid phone or password.'; errorEl.style.display = 'block'; }
+                        return;
+                    }
+                    localStorage.setItem('eduquest_user', JSON.stringify(user));
+                    window.location.href = 'index.html';
+                } else {
+                    if (userExists('student', phone, null)) {
+                        if (errorEl) { errorEl.textContent = 'An account with this phone already exists.'; errorEl.style.display = 'block'; }
+                        return;
+                    }
+                    const newUser = {
+                        role: 'student', username: name, phone, password, gradeLevel: grade,
+                        points: 0, badges: [], lessonsCompleted: 0, mathProgress: 0, scienceProgress: 0, memoryProgress: 0,
+                        language: 'en'
+                    };
+                    const users = getUsers();
+                    users.push(newUser);
+                    saveUsers(users);
+                    localStorage.setItem('eduquest_user', JSON.stringify(newUser));
+                    window.location.href = 'index.html';
+                }
+            });
+
+            // Handle faculty login
+            document.getElementById('faculty-login-btn').addEventListener('click', function(e) {
+                e.preventDefault();
+                const name = document.getElementById('faculty-name').value.trim() || 'Faculty';
+                const email = document.getElementById('faculty-email').value.trim();
+                const phone = document.getElementById('faculty-phone').value.trim();
+                const password = document.getElementById('faculty-password').value;
+                const errorEl = document.getElementById('faculty-error');
+                if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+
+                if (!isValidEmail(email)) {
+                    if (errorEl) { errorEl.textContent = 'Please enter a valid email address.'; errorEl.style.display = 'block'; }
+                    return;
+                }
+                if (!isValidPhone(phone)) {
+                    if (errorEl) { errorEl.textContent = 'Please enter a valid 10-digit phone number.'; errorEl.style.display = 'block'; }
+                    return;
+                }
+                if (!password) {
+                    if (errorEl) { errorEl.textContent = 'Password cannot be empty.'; errorEl.style.display = 'block'; }
+                    return;
+                }
+                if (facultyMode === 'login') {
+                    const identifier = email || phone;
+                    const user = findUser('faculty', identifier, password);
+                    if (!user) {
+                        if (errorEl) { errorEl.textContent = 'Invalid email/phone or password.'; errorEl.style.display = 'block'; }
+                        return;
+                    }
+                    localStorage.setItem('eduquest_user', JSON.stringify(user));
+                    window.location.href = 'dashboard.html';
+                } else {
+                    if (userExists('faculty', phone, email)) {
+                        if (errorEl) { errorEl.textContent = 'An account with this email/phone already exists.'; errorEl.style.display = 'block'; }
+                        return;
+                    }
+                    const newUser = {
+                        role: 'faculty', username: name, email, phone, password,
+                        points: 0, badges: [], lessonsCompleted: 0, mathProgress: 0, scienceProgress: 0, memoryProgress: 0,
+                        language: 'en'
+                    };
+                    const users = getUsers();
+                    users.push(newUser);
+                    saveUsers(users);
+                    localStorage.setItem('eduquest_user', JSON.stringify(newUser));
+                    window.location.href = 'dashboard.html';
+                }
+            });
+
+            // Forgot password placeholders (for future backend integration)
+            const studentForgot = document.getElementById('student-forgot');
+            if (studentForgot) studentForgot.addEventListener('click', function(e) { e.preventDefault(); alert('Password reset coming soon. Please contact support.'); });
+            const facultyForgot = document.getElementById('faculty-forgot');
+            if (facultyForgot) facultyForgot.addEventListener('click', function(e) { e.preventDefault(); alert('Password reset coming soon. Please contact admin.'); });
+        });
+    </script>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>EduQuest</h1>
+                <p class="muted">Sign in to continue</p>
+            </div>
+            <div class="login-body">
+                <div class="center" style="margin-bottom: 10px;">
+                    <p class="muted">I am a</p>
+                </div>
+                <div class="role-select">
+                    <button class="role-btn active" data-role="student">Student</button>
+                    <button class="role-btn" data-role="faculty">Faculty</button>
+                </div>
+
+                <form id="student-form" class="form active">
+                    <h3>Student Login</h3>
+                    <div class="field">
+                        <label for="student-name">Full Name</label>
+                        <input id="student-name" type="text" placeholder="Enter your name">
+                    </div>
+                    <div class="field">
+                        <label for="student-grade">Grade</label>
+                        <select id="student-grade">
+                            <option value="6">Class 6</option>
+                            <option value="7">Class 7</option>
+                            <option value="8">Class 8</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="student-phone">Phone Number</label>
+                        <input id="student-phone" type="tel" placeholder="e.g. 9876543210">
+                    </div>
+                    <div class="field">
+                        <label for="student-password">Password</label>
+                        <input id="student-password" type="password" placeholder="Enter password">
+                    </div>
+                    <p id="student-error" class="muted" style="color:#ff4757; display:none;"></p>
+                    <div class="actions">
+                        <button id="student-login-btn" class="primary-btn" type="submit">Continue</button>
+                        <a class="back-link" id="student-forgot" href="#">Forgot Password?</a>
+                        <a class="back-link" id="student-toggle-mode" href="#" style="margin-left:auto;">New here? Create account</a>
+                    </div>
+                </form>
+
+                <form id="faculty-form" class="form">
+                    <h3>Faculty Login</h3>
+                    <div class="field">
+                        <label for="faculty-name">Full Name</label>
+                        <input id="faculty-name" type="text" placeholder="Enter your name">
+                    </div>
+                    <div class="field">
+                        <label for="faculty-email">Email</label>
+                        <input id="faculty-email" type="email" placeholder="name@example.com">
+                    </div>
+                    <div class="field">
+                        <label for="faculty-phone">Phone Number</label>
+                        <input id="faculty-phone" type="tel" placeholder="e.g. 9876543210">
+                    </div>
+                    <div class="field">
+                        <label for="faculty-password">Password</label>
+                        <input id="faculty-password" type="password" placeholder="Enter password">
+                    </div>
+                    <p id="faculty-error" class="muted" style="color:#ff4757; display:none;"></p>
+                    <div class="actions">
+                        <button id="faculty-login-btn" class="primary-btn" type="submit">Continue</button>
+                        <a class="back-link" id="faculty-forgot" href="#">Forgot Password?</a>
+                        <a class="back-link" id="faculty-toggle-mode" href="#" style="margin-left:auto;">New here? Create account</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
